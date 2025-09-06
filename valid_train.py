@@ -14,10 +14,10 @@ from sklearn.model_selection import KFold
 import networks as nets
 import data_preprocess_mol as preprocess_mol
 
-MODEL_CLASSES = [
-    cls for name, cls in vars(nets).items()
-    if isinstance(cls, type) and ("GAT" in name or "GCNN" in name)
-]
+MODEL_CLASSES = [nets.OneConvGCNN, nets.TwoConvGCNN]
+# cls for name, cls in vars(nets).items()
+# if isinstance(cls, type) and ("GAT" in name or "GCNN" in name)
+# ]
 
 IN_EMB_DIM = 19
 OUT_EMB_DIM = 1
@@ -79,8 +79,8 @@ def ploss(values: list):
     return mean, sd, f"{mean:2.5f}±{sd:2.2f}"
 
 
-def train_model(model, num_epochs, trainloader, criterion, optimizer,
-                scheduler, validloader, verbose=False, dump=False):
+def kf_train_model(model, fold, num_epochs, trainloader, criterion, optimizer,
+                   scheduler, validloader, verbose=False, dump=False):
     """
     Training loop for the torch model
     """
@@ -93,7 +93,7 @@ def train_model(model, num_epochs, trainloader, criterion, optimizer,
     avg_train_losses = []
     avg_valid_losses = []
 
-    for _ in tqdm.tqdm(range(num_epochs)):
+    for _ in tqdm.tqdm(range(num_epochs), desc=f"Fold {fold:2.0f}"):
         epoch_train_loss = []
         epoch_valid_loss = []
 
@@ -190,7 +190,7 @@ h5f = h5py.File(treated_molecules_path, "r")
 
 train_set: pd.DataFrame = metadata[metadata["set"] == "train"]
 
-NUM_EPOCHS = 200
+NUM_EPOCHS = 20
 BATCH_SIZE = 32
 START_LEARNING_RATE = 0.01
 STEP_SIZE = 20
@@ -198,6 +198,7 @@ STEP_SIZE = 20
 
 def kfold_validate_models(model_class_name, num_folds=5):
 
+    print(f"Validating {model_class_name}")
     run_result_list = []
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=42)
 
@@ -237,15 +238,16 @@ def kfold_validate_models(model_class_name, num_folds=5):
 
         # Train the model
         train_losses, valid_losses, avg_train_losses, avg_valid_losses = \
-            train_model(model_istance,
-                        num_epochs=NUM_EPOCHS,
-                        trainloader=train_dataloader,
-                        validloader=valid_dataloader,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        scheduler=scheduler,
-                        verbose=True,
-                        dump=True)
+            kf_train_model(model_istance,
+                           fold,
+                           num_epochs=NUM_EPOCHS,
+                           trainloader=train_dataloader,
+                           validloader=valid_dataloader,
+                           criterion=criterion,
+                           optimizer=optimizer,
+                           scheduler=scheduler,
+                           verbose=True,
+                           dump=True)
 
         # Store and process the results
         n_conv, n_heads = MODELS_NCONV_HEADS[model_class_name]
