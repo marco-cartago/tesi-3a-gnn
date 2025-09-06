@@ -1,0 +1,5 @@
+/secret/*
+/__pycache__/*
+/model-outputs/*
+/mol-data/transformer_embedded.npz
+.env
