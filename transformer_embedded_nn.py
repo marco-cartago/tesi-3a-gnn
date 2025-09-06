@@ -19,8 +19,7 @@ class Data(Dataset):
     def __getitem__(self, idx):
         s = self.mol_data["Canonical SMILES"][idx]
         data = self.np_data[s].astype(np.float32)
-        e = torch.from_numpy(data).mean(
-            dim=0)  # (1, 512)
+        e = torch.from_numpy(data).mean(dim=0)
         l = torch.tensor(self.mol_data["Eat"][idx], dtype=torch.float32)
 
         return (e, l)
@@ -29,48 +28,42 @@ class Data(Dataset):
         return len(self.mol_data)
 
 
-# Define the neural network model
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.fc1 = nn.Linear(512, 256)
         self.fc2 = nn.Linear(256, 1)
-        # self.fc3 = nn.Linear(128, 64)
-        # self.fc4 = nn.Linear(64, 1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        # x = torch.relu(self.fc2(x))
-        # x = torch.relu(self.fc3(x))
         x = self.fc2(x)
 
         return x
 
 
-# Create dataset and data loader
-dataset = Data()
-data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+def main():
 
-# Initialize model, optimizer and loss function
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-model = Net().to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.MSELoss()
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    dataset = Data()
+    data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model = Net().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.MSELoss()
 
-# Train the model
-for epoch in range(10):
-    for i, (e, l) in enumerate(data_loader):
-        # Forward pass
-        e = e.to(device)
-        l = l.to(device)
-        outputs = model(e)
+    for epoch in range(10):
+        for i, (e, l) in enumerate(data_loader):
+            e = e.to(device)
+            l = l.to(device)
+            outputs = model(e)
 
-        # Calculate loss
-        loss = criterion(outputs, l.view(-1, 1))
+            loss = criterion(outputs, l.view(-1, 1))
 
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        print('Epoch {}: Loss = {:.4f}'.format(epoch+1, loss.item()))
+            print('Epoch {}: Loss = {:.4f}'.format(epoch+1, loss.item()))
+
+
+if __name__ == "__main__":
+    main()
