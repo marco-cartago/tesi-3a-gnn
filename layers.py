@@ -73,7 +73,8 @@ class GraphConv(nn.Module):
         aggregated = torch.matmul(graph.adj_mat, emb)
 
         # Apply average
-        averaged_aggregation = aggregated * torch.sum(graph.adj_mat, dim=1)
+        neighbours = torch.sum(graph.adj_mat, dim=1).view(-1, 1)
+        averaged_aggregation = aggregated * neighbours
 
         # Transform and apply activation
         transformed = self.linear(averaged_aggregation)
