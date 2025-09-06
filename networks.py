@@ -187,7 +187,7 @@ class OneConvGCNN(nn.Module):
         return y
 
 
-class TwoConvGCNN(nn.Module):
+class TwoConvGNN(nn.Module):
 
     """Conv()+Conv()+Agg()"""
 
