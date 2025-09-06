@@ -96,6 +96,8 @@ class GAT(nn.Module):
 
 class JustAggrConvGNN(nn.Module):
 
+    """Agg()"""
+
     def __init__(self, in_dim, out_dim, upscale_dim=128, act=F.gelu):
         super().__init__()
         self.in_dim = in_dim
@@ -137,6 +139,8 @@ class JustAggrConvGNN(nn.Module):
 
 # One convolution
 class OneConvGCNN(nn.Module):
+
+    """Conv()+Agg()"""
 
     def __init__(self, in_dim, out_dim, upscale_dim=128, act=F.gelu):
         super().__init__()
@@ -185,6 +189,8 @@ class OneConvGCNN(nn.Module):
 
 class TwoConvGCNN(nn.Module):
 
+    """Conv()+Conv()+Agg()"""
+
     def __init__(self, in_dim, out_dim, upscale_dim=128, act=F.gelu):
         super().__init__()
         self.in_dim = in_dim
@@ -231,31 +237,27 @@ class TwoConvGCNN(nn.Module):
         return y
 
 
-class OneConvGAT(nn.Module):
+class OneHeadGAT(nn.Module):
+
+    """3xAttConv()+Agg()"""
 
     def __init__(self, in_dim: int, out_dim: int,
-                 upscale_dim: int = 128, n_head: int = 3, act=F.gelu):
+                 upscale_dim: int = 128, act=F.gelu):
 
         super().__init__()
 
         self.graph_layers = nn.ModuleList(
             [
                 GraphMultiHeadAttention(
-                    in_dim, upscale_dim, n_heads=n_head,
+                    in_dim, upscale_dim, n_heads=1,
                     act=act),
-                GraphMultiHeadAttention(
-                    upscale_dim * n_head, upscale_dim, n_heads=n_head,
-                    act=act,),
-                GraphMultiHeadAttention(
-                    upscale_dim * n_head, upscale_dim, n_heads=n_head,
-                    act=act,),
                 GlobalAggregator(),
             ]
         )
 
         self.mlp_layers = nn.ModuleList(
             [
-                nn.Linear(upscale_dim * n_head, upscale_dim // 2),
+                nn.Linear(upscale_dim, upscale_dim // 2),
                 nn.GELU(),
                 nn.Linear(upscale_dim//2, upscale_dim//2),
                 nn.GELU(),
@@ -290,6 +292,8 @@ class OneConvGAT(nn.Module):
 
 
 class MultipleGAT(nn.Module):
+
+    """3 x AttConv() + Agg"""
 
     def __init__(self, in_dim: int, out_dim: int,
                  upscale_dim: int = 21, n_head: int = 3, act=F.gelu):

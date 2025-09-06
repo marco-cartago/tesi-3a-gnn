@@ -6,8 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 
 # Load data
-mol_data = pd.read_csv("./molecs/MyRoboBohr2.csv")
-np_data = np.load("./molecs/SMILES.npz")
+mol_data = pd.read_csv("./mol-data/MyRoboBohr2.csv")
+
+# Was too large to be loaded on github.
+np_data = np.load("./mol-data/transformer-embedded.npz")
 
 
 class Data(Dataset):
