@@ -144,9 +144,9 @@ class TwoConvGCNN(nn.Module):
         return y
 
 
-class OneHeadGAT(nn.Module):
+class OneLayerOneHeadGAT(nn.Module):
 
-    """3xAttConv()+Agg()"""
+    """1xAttConv()+Agg()"""
 
     def __init__(self, in_dim: int, out_dim: int,
                  upscale_dim: int = 128, act=F.gelu):
