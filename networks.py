@@ -14,11 +14,14 @@ class JustAggrConvGCNN(nn.Module):
 
         self.graph_layers = nn.ModuleList([GlobalAggregator()])
 
-        self.mlp_layers = nn.ModuleList([
-            nn.Linear(in_dim, 64),
-            nn.GELU(),
-            nn.Linear(64, out_dim),
-        ]
+        self.mlp_layers = nn.ModuleList(
+            [
+                nn.Linear(in_dim, 64),
+                nn.GELU(),
+                nn.Linear(64, 32),
+                nn.GELU(),
+                nn.Linear(32, out_dim),
+            ]
         )
 
     def graph_conv(self, x: EnrichedGraph, stop_at=None):
@@ -67,7 +70,9 @@ class OneConvGCNN(nn.Module):
             [
                 nn.Linear(upscale_dim, 64),
                 nn.GELU(),
-                nn.Linear(64, out_dim),
+                nn.Linear(64, 32),
+                nn.GELU(),
+                nn.Linear(32, out_dim),
             ]
         )
 
@@ -117,7 +122,9 @@ class TwoConvGCNN(nn.Module):
             [
                 nn.Linear(upscale_dim, 64),
                 nn.GELU(),
-                nn.Linear(64, out_dim),
+                nn.Linear(64, 32),
+                nn.GELU(),
+                nn.Linear(32, out_dim),
             ]
         )
 
@@ -164,11 +171,11 @@ class OneLayerOneHeadGAT(nn.Module):
 
         self.mlp_layers = nn.ModuleList(
             [
-                nn.Linear(upscale_dim, upscale_dim // 2),
+                nn.Linear(upscale_dim, 64),
                 nn.GELU(),
-                nn.Linear(upscale_dim//2, upscale_dim//2),
+                nn.Linear(64, 32),
                 nn.GELU(),
-                nn.Linear(upscale_dim//2, out_dim),
+                nn.Linear(32, out_dim),
             ]
         )
 
@@ -224,11 +231,11 @@ class MultiHeadGAT(nn.Module):
 
         self.mlp_layers = nn.ModuleList(
             [
-                nn.Linear(upscale_dim * n_head, upscale_dim // 2),
+                nn.Linear(upscale_dim * n_head, 64),
                 nn.GELU(),
-                nn.Linear(upscale_dim//2, upscale_dim//2),
+                nn.Linear(64, 32),
                 nn.GELU(),
-                nn.Linear(upscale_dim//2, out_dim),
+                nn.Linear(32, out_dim),
             ]
         )
 
