@@ -28,50 +28,74 @@ STEP_SIZE = 8
 
 MODELS = {
 
+    # No convolutions
+
     # To test a model that just does aggregation
     "JustAggrConvGCNN": (nets.JustAggrConvGCNN,
                          (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
+
+
+    # One convolution
 
     # A single convolution with average aggregation
     "OneConvGCNN": (nets.OneConvGCNN,
                     (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 
+    # Graph attention with one head
+    "OneLayerOneHeadGAT": (nets.OneLayerOneHeadGAT,
+                           (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
+
+    # Graph attention with multiple heads
+    "OneLayerMultiHeadGAT4": (nets.OneLayerMultiHeadGAT,
+                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
+
+
+    # Two convolutions
+
     # Two convolutions with average aggregation
     "TwoConvGCNN": (nets.TwoConvGCNN,
                     (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 
-    # Graph attention network with one head
-    "OneLayerOneHeadGAT": (nets.OneLayerOneHeadGAT,
-                           (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
-
-    # Graph attention network with two heads
-    "MultiHeadGAT2": (nets.MultiHeadGAT,
-                      (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 2)),
+    # Graph attention with two heads
+    "TwoLayerSingleHeadGAT": (nets.TwoLayerSingleHeadGAT,
+                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 2)),
 
     # Graph attention with four heads
-    "MultiHeadGAT4": (nets.MultiHeadGAT,
-                      (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
+    "TwoLayerMultiHeadGAT": (nets.TwoLayerMultiHeadGAT,
+                             (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
 }
 
 MODELS_NCONV_HEADS = {
 
+
+    # No convolutions
+
     # To test a model that just does aggregation
     "JustAggrConvGCNN": (0, 0),
+
+
+    # One convolution
 
     # A single convolution with average aggregation
     "OneConvGCNN": (1, 0),
 
-    # Two convolutions with average aggregation
-    "TwoConvGCNN": (2, 0),
-
     # Graph attention network with one head
     "OneLayerOneHeadGAT": (1, 1),
 
-    # Graph attention network with two heads
-    "MultiHeadGAT2": (2, 2),
+    # Graph attention network with multiple heads
+    "OneLayerMultiHeadGAT4": (1, 4),
 
-    # Graph attention network with four heads
-    "MultiHeadGAT4": (2, 4),
+
+    # Two convolutions
+
+    # Two convolutions with average aggregation
+    "TwoLayerTwoConvGCNN": (2, 0),
+
+    # Graph attention network with two heads
+    "TwoLayerSingleHeadGAT": (2, 1),
+
+    # Graph attention with four heads
+    "TwoLayerMultiHeadGAT": (2, 4),
 }
 
 
