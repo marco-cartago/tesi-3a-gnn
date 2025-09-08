@@ -14,9 +14,17 @@ from sklearn.model_selection import KFold
 import networks as nets
 import data_preprocess_mol as preprocess_mol
 
+# Model parameters
 IN_EMB_DIM = 19
 OUT_EMB_DIM = 1
 UPSCALE_DIM = 128
+
+# Training parameter
+NUM_EPOCHS = 100
+BATCH_SIZE = 32
+START_LEARNING_RATE = 0.0001
+STEP_SIZE = 8
+
 
 MODELS = {
 
@@ -169,7 +177,7 @@ class RunResult():
         self.v_epoch_avg_losses = []
 
 
-def kfold_validate_models(model_class_name, num_folds=5, restarts=2):
+def kfold_validate_models(h5f, train_set, model_class_name, num_folds=5, restarts=2):
 
     print(f"Validating {model_class_name}")
     run_result_list = []
@@ -245,35 +253,29 @@ def kfold_validate_models(model_class_name, num_folds=5, restarts=2):
     return run_result_list
 
 
-load_dotenv()
-
-# Set arguments
-mol_data_path = "./mol-data/mol_sample_metadata.csv"
-metadata = pd.read_csv(mol_data_path)
-
-# Path to the h5py file containing all the preprocessed embeddings, labels
-# and adjacency matrix
-treated_molecules_path = "./mol_dataset.h5"
-if treated_molecules_path is None:
-    raise ValueError("Invalid .h5 data path.")
-
-h5f = h5py.File(treated_molecules_path, "r")
-
-train_set: pd.DataFrame = metadata[metadata["set"] == "train"]
-
-NUM_EPOCHS = 100
-BATCH_SIZE = 32
-START_LEARNING_RATE = 0.0001
-STEP_SIZE = 8
-
-
 def main():
+
+    load_dotenv()
+
+    # Set arguments
+    mol_data_path = "./mol-data/mol_sample_metadata.csv"
+    metadata = pd.read_csv(mol_data_path)
+
+    # Path to the h5py file containing all the preprocessed embeddings, labels
+    # and adjacency matrix
+    treated_molecules_path = "./mol_dataset.h5"
+    if treated_molecules_path is None:
+        raise ValueError("Invalid .h5 data path.")
+
+    h5f = h5py.File(treated_molecules_path, "r")
+
+    train_set: pd.DataFrame = metadata[metadata["set"] == "train"]
 
     print(MODELS.items())
     obj = []
 
     for cl_name in MODELS.keys():
-        obj.append(kfold_validate_models(cl_name))
+        obj.append(kfold_validate_models(h5f, train_set, cl_name))
 
         with open("./model-outputs/out_valid.pkl", "wb") as f:
             pickle.dump(obj, f)
