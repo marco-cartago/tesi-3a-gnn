@@ -205,6 +205,60 @@ class OneLayerOneHeadGAT(nn.Module):
         return y
 
 
+class OneLayerMultiHeadGAT(nn.Module):
+
+    """1xAttConv()+Agg()"""
+
+    def __init__(self, in_dim: int, out_dim: int,
+                 upscale_dim: int = 128, act=F.gelu):
+
+        super().__init__()
+
+        self.graph_layers = nn.ModuleList(
+            [
+                GraphMultiHeadAttention(
+                    in_dim, upscale_dim, n_heads=4,
+                    act=act),
+                GlobalAggregator(),
+            ]
+        )
+
+        self.mlp_layers = nn.ModuleList(
+            [
+                nn.Linear(upscale_dim, 64),
+                nn.GELU(),
+                nn.Linear(64, 32),
+                nn.GELU(),
+                nn.Linear(32, out_dim),
+            ]
+        )
+
+        self.act = act
+
+    def graph_conv(self, x: EnrichedGraph, stop_at=None):
+
+        if stop_at is None:
+            layer_list = self.graph_layers
+        else:
+            if abs(stop_at) > len(self.graph_layers):
+                raise ValueError("Graph layers are out of range.")
+            layer_list = self.graph_layers[:stop_at]
+
+        for layer in layer_list:
+            x = layer(x)
+        return x
+
+    def nn_layers(self, x):
+        for layer in self.mlp_layers:
+            x = layer(x)
+        return x
+
+    def forward(self, x):
+        y = self.graph_conv(x)
+        y = self.nn_layers(y)
+        return y
+
+
 class MultiHeadGAT(nn.Module):
 
     """2 x AttConv() + Agg"""
