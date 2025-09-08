@@ -194,11 +194,8 @@ def main():
 
     metadata = []
 
-    # Intialize database
     # Path to the .h5 file to create
-    db_path = os.getenv("TREATED_MOLECULES_PATH")
-    if db_path is None:
-        raise FileNotFoundError("File unreachable")
+    db_path = "./mol_dataset.h5"
 
     # train/validation/test split
     mol_info = mol_info.sample(
