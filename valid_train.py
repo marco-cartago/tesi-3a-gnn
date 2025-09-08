@@ -14,11 +14,6 @@ from sklearn.model_selection import KFold
 import networks as nets
 import data_preprocess_mol as preprocess_mol
 
-MODEL_CLASSES = [  # nets.OneConvGCNN, nets.TwoConvGCNN]
-    cls for name, cls in vars(nets).items()
-    if isinstance(cls, type) and ("GAT" in name or "GCNN" in name)
-]
-
 IN_EMB_DIM = 19
 OUT_EMB_DIM = 1
 UPSCALE_DIM = 128
@@ -42,12 +37,12 @@ MODELS = {
                            (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 
     # Graph attention network with two heads
-    "MultiHeadGAT-2": (nets.MultiHeadGAT,
-                       (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 2)),
+    "MultiHeadGAT2": (nets.MultiHeadGAT,
+                      (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 2)),
 
     # Graph attention with four heads
-    "MultiHeadGAT-4": (nets.MultiHeadGAT,
-                       (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
+    "MultiHeadGAT4": (nets.MultiHeadGAT,
+                      (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
 }
 
 MODELS_NCONV_HEADS = {
@@ -62,13 +57,13 @@ MODELS_NCONV_HEADS = {
     "TwoConvGCNN": (2, 0),
 
     # Graph attention network with one head
-    "OneLayerOneHeadGAT": (21, 1),
+    "OneLayerOneHeadGAT": (1, 1),
 
     # Graph attention network with two heads
-    "MultiHeadGAT-2": (2, 2),
+    "MultiHeadGAT2": (2, 2),
 
-    # Graph attention with four heads
-    "MultiHeadGAT-4": (2, 4),
+    # Graph attention network with four heads
+    "MultiHeadGAT4": (2, 4),
 }
 
 
@@ -174,28 +169,6 @@ class RunResult():
         self.v_epoch_avg_losses = []
 
 
-load_dotenv()
-
-# Set arguments
-mol_data_path = "./mol-data/mol_sample_metadata.csv"
-metadata = pd.read_csv(mol_data_path)
-
-# Path to the h5py file containing all the preprocessed embeddings, labels
-# and adjacency matrix
-treated_molecules_path = os.getenv("TREATED_MOLECULES_PATH")
-if treated_molecules_path is None:
-    raise ValueError("Invalid .h5 data path.")
-
-h5f = h5py.File(treated_molecules_path, "r")
-
-train_set: pd.DataFrame = metadata[metadata["set"] == "train"]
-
-NUM_EPOCHS = 100
-BATCH_SIZE = 32
-START_LEARNING_RATE = 0.01
-STEP_SIZE = 5
-
-
 def kfold_validate_models(model_class_name, num_folds=5, restarts=2):
 
     print(f"Validating {model_class_name}")
@@ -272,14 +245,38 @@ def kfold_validate_models(model_class_name, num_folds=5, restarts=2):
     return run_result_list
 
 
+load_dotenv()
+
+# Set arguments
+mol_data_path = "./mol-data/mol_sample_metadata.csv"
+metadata = pd.read_csv(mol_data_path)
+
+# Path to the h5py file containing all the preprocessed embeddings, labels
+# and adjacency matrix
+treated_molecules_path = "./mol_dataset.h5"
+if treated_molecules_path is None:
+    raise ValueError("Invalid .h5 data path.")
+
+h5f = h5py.File(treated_molecules_path, "r")
+
+train_set: pd.DataFrame = metadata[metadata["set"] == "train"]
+
+NUM_EPOCHS = 100
+BATCH_SIZE = 32
+START_LEARNING_RATE = 0.0001
+STEP_SIZE = 8
+
+
 def main():
 
-    print(MODEL_CLASSES)
-    obj = [kfold_validate_models(cl_name.__name__)
-           for cl_name in MODEL_CLASSES]
+    print(MODELS.items())
+    obj = []
 
-    with open("./model-outputs/out_valid.pkl", "wb") as f:
-        pickle.dump(obj, f)
+    for cl_name in MODELS.keys():
+        obj.append(kfold_validate_models(cl_name))
+
+        with open("./model-outputs/out_valid.pkl", "wb") as f:
+            pickle.dump(obj, f)
 
 
 if __name__ == "__main__":
