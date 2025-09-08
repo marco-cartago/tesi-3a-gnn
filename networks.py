@@ -207,7 +207,7 @@ class OneLayerOneHeadGAT(nn.Module):
 
 class MultiHeadGAT(nn.Module):
 
-    """3 x AttConv() + Agg"""
+    """2 x AttConv() + Agg"""
 
     def __init__(self, in_dim: int, out_dim: int,
                  upscale_dim: int = 21, n_head: int = 3, act=F.gelu):
@@ -219,9 +219,6 @@ class MultiHeadGAT(nn.Module):
                 GraphMultiHeadAttention(
                     in_dim, upscale_dim, n_heads=n_head,
                     act=act),
-                GraphMultiHeadAttention(
-                    upscale_dim * n_head, upscale_dim, n_heads=n_head,
-                    act=act,),
                 GraphMultiHeadAttention(
                     upscale_dim * n_head, upscale_dim, n_heads=n_head,
                     act=act,),
