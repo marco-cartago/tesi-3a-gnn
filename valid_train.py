@@ -19,11 +19,11 @@ IN_EMB_DIM = 19
 OUT_EMB_DIM = 1
 UPSCALE_DIM = 128
 
-# Training parameter
-NUM_EPOCHS = 100
+# Training parameterss
+NUM_EPOCHS = 160
 BATCH_SIZE = 32
-START_LEARNING_RATE = 0.0001
-STEP_SIZE = 8
+START_LEARNING_RATE = 1e-3
+STEP_SIZE = 16
 
 
 MODELS = {
@@ -47,7 +47,7 @@ MODELS = {
 
     # Graph attention with multiple heads
     "OneLayerMultiHeadGAT4": (nets.OneLayerMultiHeadGAT,
-                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
+                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 
 
     # Two convolutions
@@ -58,11 +58,11 @@ MODELS = {
 
     # Graph attention with two heads
     "TwoLayerSingleHeadGAT": (nets.TwoLayerSingleHeadGAT,
-                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 2)),
+                              (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 
     # Graph attention with four heads
     "TwoLayerMultiHeadGAT": (nets.TwoLayerMultiHeadGAT,
-                             (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM, 4)),
+                             (IN_EMB_DIM, OUT_EMB_DIM, UPSCALE_DIM)),
 }
 
 MODELS_NCONV_HEADS = {
@@ -89,7 +89,7 @@ MODELS_NCONV_HEADS = {
     # Two convolutions
 
     # Two convolutions with average aggregation
-    "TwoLayerTwoConvGCNN": (2, 0),
+    "TwoConvGCNN": (2, 0),
 
     # Graph attention network with two heads
     "TwoLayerSingleHeadGAT": (2, 1),
@@ -155,16 +155,16 @@ def kf_train_model(model, fold, num_epochs, trainloader, criterion, optimizer,
                 valid_losses.append(loss.item())
                 epoch_valid_loss.append(loss.item())
 
-        # Scheduler step
-        # scheduler.step(valid_loss)
-        scheduler.step()
-
         # Calculate average losses
         avg_train_loss = ploss(epoch_train_loss)[0]
         avg_valid_loss = ploss(epoch_valid_loss)[0]
 
         avg_train_losses.append(avg_train_loss)
         avg_valid_losses.append(avg_valid_loss)
+
+        # Scheduler step
+        scheduler.step(avg_valid_loss)
+        # scheduler.step()
 
         if dump:
             with open("./model-outputs/model_results.pkl", "wb") as f:
@@ -206,8 +206,10 @@ def kfold_validate_models(h5f, train_set, model_class_name, num_folds=5, restart
     print(f"Validating {model_class_name}")
     run_result_list = []
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=42)
+    splitted = kf.split(train_set)
+    # splitted = [list(iter(kf.split(train_set)))[0]]
 
-    for fold, (train_idx, val_idx) in enumerate(kf.split(train_set)):
+    for fold, (train_idx, val_idx) in enumerate(splitted):
 
         for restart in range(restarts):
 
@@ -238,11 +240,18 @@ def kfold_validate_models(h5f, train_set, model_class_name, num_folds=5, restart
                 model_istance.parameters(),
                 lr=START_LEARNING_RATE
             )
-            scheduler = torch.optim.lr_scheduler.StepLR(
+
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                step_size=STEP_SIZE,
-                gamma=0.80,
+                factor=0.5,
+                patience=8
             )
+
+            # scheduler = torch.optim.lr_scheduler.StepLR(
+            #     optimizer,
+            #     step_size=STEP_SIZE,
+            #     gamma=0.75,
+            # )
 
             # Train the model
             train_losses, valid_losses, avg_train_losses, avg_valid_losses = \
@@ -298,7 +307,7 @@ def main():
     print(MODELS.items())
     obj = []
 
-    for cl_name in MODELS.keys():
+    for cl_name in list(MODELS.keys()):
         obj.append(kfold_validate_models(h5f, train_set, cl_name))
 
         with open("./model-outputs/out_valid.pkl", "wb") as f:
