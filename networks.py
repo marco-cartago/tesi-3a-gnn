@@ -225,7 +225,7 @@ class OneLayerMultiHeadGAT(nn.Module):
 
         self.mlp_layers = nn.ModuleList(
             [
-                nn.Linear(upscale_dim, 64),
+                nn.Linear(upscale_dim * 4, 64),
                 nn.GELU(),
                 nn.Linear(64, 32),
                 nn.GELU(),
