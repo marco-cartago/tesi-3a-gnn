@@ -200,6 +200,11 @@ class RunResult():
         self.t_epoch_avg_losses = []
         self.v_epoch_avg_losses = []
 
+        self.model = None
+
+    def add_model(self, model):
+        self.model = model
+
 
 def kfold_validate_models(h5f, train_set, model_class_name, num_folds=5, restarts=2):
 
@@ -211,77 +216,78 @@ def kfold_validate_models(h5f, train_set, model_class_name, num_folds=5, restart
 
     for fold, (train_idx, val_idx) in enumerate(splitted):
 
-        for restart in range(restarts):
+        # Split the data based on train/test indices
+        train_subset = train_set.iloc[train_idx].reset_index(drop=True)
+        valid_subset = train_set.iloc[val_idx].reset_index(drop=True)
 
-            # Split the data based on train/test indices
-            train_subset = train_set.iloc[train_idx].reset_index(drop=True)
-            valid_subset = train_set.iloc[val_idx].reset_index(drop=True)
+        # Load and preprocess the data
+        train_subset_dataset = preprocess_mol.H5PyMolDataset(
+            h5f, train_subset, "idx", train=True)
+        train_dataloader = DataLoader(
+            train_subset_dataset, batch_size=BATCH_SIZE,
+            shuffle=False, collate_fn=preprocess_mol.graph_collate_fn_h5)
 
-            # Load and preprocess the data
-            train_subset_dataset = preprocess_mol.H5PyMolDataset(
-                h5f, train_subset, "idx", train=True)
-            train_dataloader = DataLoader(
-                train_subset_dataset, batch_size=BATCH_SIZE,
-                shuffle=False, collate_fn=preprocess_mol.graph_collate_fn_h5)
+        valid_subset_dataset = preprocess_mol.H5PyMolDataset(
+            h5f, valid_subset, "idx", train=True)
+        valid_dataloader = DataLoader(
+            valid_subset_dataset, batch_size=BATCH_SIZE,
+            shuffle=False, collate_fn=preprocess_mol.graph_collate_fn_h5)
 
-            valid_subset_dataset = preprocess_mol.H5PyMolDataset(
-                h5f, valid_subset, "idx", train=True)
-            valid_dataloader = DataLoader(
-                valid_subset_dataset, batch_size=BATCH_SIZE,
-                shuffle=False, collate_fn=preprocess_mol.graph_collate_fn_h5)
+        # Initialize model, optimizer, scheduler
+        model_class, args = MODELS[model_class_name]
+        model_istance = model_class(*args)
 
-            # Initialize model, optimizer, scheduler
-            model_class, args = MODELS[model_class_name]
-            model_istance = model_class(*args)
+        # Define criterion, optimizer and scheduler
+        criterion = torch.nn.MSELoss()
+        optimizer = torch.optim.RMSprop(
+            model_istance.parameters(),
+            lr=START_LEARNING_RATE
+        )
 
-            # Define criterion, optimizer and scheduler
-            criterion = torch.nn.MSELoss()
-            optimizer = torch.optim.Adam(
-                model_istance.parameters(),
-                lr=START_LEARNING_RATE
-            )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            factor=0.5,
+            patience=8,
+        )
 
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                factor=0.5,
-                patience=8
-            )
+        # scheduler = torch.optim.lr_scheduler.StepLR(
+        #     optimizer,
+        #     step_size=STEP_SIZE,
+        #     gamma=0.75,
+        # )
 
-            # scheduler = torch.optim.lr_scheduler.StepLR(
-            #     optimizer,
-            #     step_size=STEP_SIZE,
-            #     gamma=0.75,
-            # )
+        # Train the model
+        train_losses, valid_losses, avg_train_losses, avg_valid_losses = \
+            kf_train_model(model_istance,
+                           fold,
+                           num_epochs=NUM_EPOCHS,
+                           trainloader=train_dataloader,
+                           validloader=valid_dataloader,
+                           criterion=criterion,
+                           optimizer=optimizer,
+                           scheduler=scheduler,
+                           verbose=True,
+                           dump=True)
 
-            # Train the model
-            train_losses, valid_losses, avg_train_losses, avg_valid_losses = \
-                kf_train_model(model_istance,
-                               fold,
-                               num_epochs=NUM_EPOCHS,
-                               trainloader=train_dataloader,
-                               validloader=valid_dataloader,
-                               criterion=criterion,
-                               optimizer=optimizer,
-                               scheduler=scheduler,
-                               verbose=True,
-                               dump=True)
+        # Store and process the results
+        n_conv, n_heads = MODELS_NCONV_HEADS[model_class_name]
 
-            # Store and process the results
-            n_conv, n_heads = MODELS_NCONV_HEADS[model_class_name]
+        run_result = RunResult(fold_num=fold,
+                               batch_size=BATCH_SIZE,
+                               learning_rate=START_LEARNING_RATE,
+                               model_name=model_class_name,
+                               n_head=n_conv,
+                               e_size=UPSCALE_DIM,
+                               n_conv=n_heads)
 
-            run_result = RunResult(fold_num=fold,
-                                   batch_size=BATCH_SIZE,
-                                   learning_rate=START_LEARNING_RATE,
-                                   model_name=model_class_name,
-                                   n_head=n_conv,
-                                   e_size=UPSCALE_DIM,
-                                   n_conv=n_heads)
+        run_result.t_losses = train_losses
+        run_result.v_losses = valid_losses
+        run_result.t_epoch_avg_losses = avg_train_losses
+        run_result.v_epoch_avg_losses = avg_valid_losses
 
-            run_result.t_losses = train_losses
-            run_result.v_losses = valid_losses
-            run_result.t_epoch_avg_losses = avg_train_losses
-            run_result.v_epoch_avg_losses = avg_valid_losses
-            run_result_list.append(run_result)
+        run_result.add_model(model_istance.to("cpu"))
+
+        run_result_list.append(run_result)
 
     return run_result_list
 
@@ -307,10 +313,10 @@ def main():
     print(MODELS.items())
     obj = []
 
-    for cl_name in list(MODELS.keys()):
+    for cl_name in list(MODELS.keys())[::-1]:
         obj.append(kfold_validate_models(h5f, train_set, cl_name))
 
-        with open("./model-outputs/out_valid.pkl", "wb") as f:
+        with open(f"./model-outputs/out_valid_{time.time()}.pkl", "wb") as f:
             pickle.dump(obj, f)
 
 
