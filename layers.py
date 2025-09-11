@@ -197,21 +197,26 @@ class GlobalAggregator(nn.Module):
     def forward(self, g: EnrichedGraph) -> torch.Tensor:
 
         device = g.device
-        num_groups = int(g.corrisp.max() + 1)
-        emb_dim = g.emb_mat.size(1)
         emb_mat = g.emb_mat
+        corr = g.corrisp.to(device)
 
-        # Create result tensor
-        result = torch.empty(num_groups, emb_dim, device=device)
+        # :)
+        corr_idx = corr.long()
 
-        # "Odio profondamente" questo for
-        # non avevo idea di come fare diversamente
-        # ho visto delle funzioni come scatter_add_
-        # ho provato ad usarle però non mi fido.
+        num_groups = int(corr_idx.max().item()) + 1
+        emb_dim = emb_mat.size(1)
 
-        # Potrebber benissimo essere il collo di bottiglia
-        # TODO sistemarlo
-        for i in range(num_groups):
-            result[i, :] = emb_mat[g.corrisp == i, :].mean()
+        # Create the result tensor
+        sum_per_group = torch.zeros(num_groups, emb_dim, device=device)
 
-        return result * (1/num_groups)
+        # expand corr_idx to match the embedding dimension for scattering
+        idx_expanded = corr_idx.unsqueeze(1).expand(-1, emb_dim)
+        sum_per_group = sum_per_group.scatter_add_(0, idx_expanded, emb_mat)
+
+        # Count nodes per group and normalize
+        counts = torch.bincount(
+            corr_idx, minlength=num_groups).unsqueeze(1).clamp(min=1)
+
+        result = sum_per_group / counts
+
+        return result
